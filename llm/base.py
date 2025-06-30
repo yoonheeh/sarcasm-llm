@@ -7,9 +7,15 @@ class Response(BaseModel):
     message: str
 
 
+class Turn(BaseModel):
+    model: str
+    response: Response
+
+
 class LLM(ABC):
+
     def __init__(self):
-        self._model = "" # which model to run (e.g. 'gemini-2.5-flash')
+        self._model = ""  # which model to run (e.g. 'gemini-2.5-flash')
         self._take_first_turn = False
         self._contents = []
         self._current_response = ""
@@ -27,5 +33,3 @@ class LLM(ABC):
     @property
     def current_reponse(self):
         return self._current_response
-
-
