@@ -30,6 +30,11 @@ class LLM(ABC):
         """Generates responses, given a context and updates current_response."""
         pass
 
+    @abstractmethod
+    def generate_structured_response(self, content: Response) -> Turn:
+        """Generates and returns structured output of type Response."""
+        pass
+
     @property
     def current_reponse(self):
         return self._current_response

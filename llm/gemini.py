@@ -46,23 +46,32 @@ class Gemini(LLM):
     def generate_response(self, content):
         """Generates and returns text (str) response."""
         self._contents.append(parse_content(content))
-        self._current_response = self._client.models.generate_content(
-            model=self._model,
-            contents=self._contents,
-            config=types.GenerateContentConfig(
-                system_instruction=self._prompt),
-        )
-        print(f"{self._model}: {self._current_response.text}")
-        return self._current_response.text
+        try:
+            self._current_response = self._client.models.generate_content(
+                model=self._model,
+                contents=self._contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=self._prompt),
+            )
+            print(f"{self._model}: {self._current_response.text}")
+            return self._current_response.text
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return ""
 
     def generate_structured_response(self, content: Response) -> Turn:
         """Generates and returns structured output of type Response."""
         self._contents.append(parse_content(content))
-        self._current_response = self._chat.send_message(
-            parse_content(content))
+        try:
+            self._current_response = self._chat.send_message(
+                parse_content(content))
 
-        print(f"{self._model}: {self._current_response.text}")
-        turn = Turn(model=self._model,
-                    response=Response.model_validate_json(
-                        self._current_response.text))
-        return turn
+            print(f"{self._model}: {self._current_response.text}")
+            turn = Turn(model=self._model,
+                        response=Response.model_validate_json(
+                            self._current_response.text))
+            return turn
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return Turn(model=self._model,
+                        response=Response(sarcasm_presence=False, message=""))

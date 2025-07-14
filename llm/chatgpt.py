@@ -43,27 +43,36 @@ class ChatGPT(LLM):
 
     def generate_response(self, content):
         self._history.append(make_message(content))
-        self._current_response = self._client.chat.completions.create(
-            model=self._model,
-            messages=self._history,
-        )
-        print(
-            f"{self._model}: {self._current_response.choices[0].message.content}"
-        )
-        self._history.append(self._current_response.choices[0].message)
-        return self._current_response.choices[0].message.content
+        try:
+            self._current_response = self._client.chat.completions.create(
+                model=self._model,
+                messages=self._history,
+            )
+            print(
+                f"{self._model}: {self._current_response.choices[0].message.content}"
+            )
+            self._history.append(self._current_response.choices[0].message)
+            return self._current_response.choices[0].message.content
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return ""
 
     def generate_structured_response(self, content: Response) -> Turn:
         self._history.append(make_message(content))
-        self._current_response = self._client.responses.parse(
-            model=self._model,
-            input=self._history,
-            text_format=Response,
-        )
-        print(f"{self._model}: {self._current_response.output_parsed}")
-        self._history.append(
-            make_message(self._current_response.output_parsed.message,
-                         "assistant"))
-        turn = Turn(model=self._model,
-                    response=self._current_response.output_parsed)
-        return turn
+        try:
+            self._current_response = self._client.responses.parse(
+                model=self._model,
+                input=self._history,
+                text_format=Response,
+            )
+            print(f"{self._model}: {self._current_response.output_parsed}")
+            self._history.append(
+                make_message(self._current_response.output_parsed.message,
+                             "assistant"))
+            turn = Turn(model=self._model,
+                        response=self._current_response.output_parsed)
+            return turn
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            return Turn(model=self._model,
+                        response=Response(sarcasm_presence=False, message=""))
