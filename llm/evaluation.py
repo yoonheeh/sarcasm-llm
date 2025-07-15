@@ -12,11 +12,15 @@ class Judge:
 
     def __init__(self, model_evaluated, judge_llm: LLM):
         self._judge = judge_llm
+        self._evaluation_report = ""
         model = 'gemini-2.5-flash'  #TODO: maybe use more advanced model?
         evaluation_criteria = f"{model_evaluated} is getting evaluated. Score {model_evaluated}'s response to sarcasm."
         prompt = "\n".join([JUDGE_PROMPT, EVALUATION_RUBRIC, evaluation_criteria])
         self._judge.initialize(model, prompt)
 
+    @property
+    def evaluation_report(self):
+        return self._evaluation_report
 
     def score_detectability(self, conversation: list[Turn]):
         # need to define which model is getting evaluated
@@ -24,4 +28,5 @@ class Judge:
         conversation_str = ''
         for conv in conversation:
             conversation_str += str(conv.model_dump())
-        self._judge.generate_response(conversation_str)
+        self._evaluation_report = self._judge.generate_response(conversation_str)
+
