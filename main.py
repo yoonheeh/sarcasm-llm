@@ -5,8 +5,11 @@ from llm.gemini import Gemini
 from llm.chatgpt import ChatGPT
 from llm.base import Response, Turn
 from llm.evaluation import SarcasmLevel, Judge
+import asyncio
+import json
 
 from llm.prompts import GEMINI_PROMPT, CHATGPT_PROMPT
+from fastapi.responses import StreamingResponse
 
 # Define the request body model
 class EvaluateRequest(BaseModel):
@@ -33,7 +36,7 @@ def setup_models(selected_level):
     return gemini, chatgpt, gpt_model
 
 
-def run_conversation(gemini, chatgpt, gpt_model, num_turns):
+async def stream_conversation(gemini, chatgpt, gpt_model, num_turns):
     content = "Hey how is it going?"
     first_response = Response(sarcasm_presence=False, message=content)
     content = Turn(model="starter", response=first_response)
@@ -43,14 +46,25 @@ def run_conversation(gemini, chatgpt, gpt_model, num_turns):
         f"Running test on sarcasm level: {model_evaluated}, {SarcasmLevel.HARD.name}"
     )
     conversation: list[Turn] = [content]
+    yield f"data: {json.dumps(content.model_dump())}\n\n"
+
     for _ in range(0, num_turns):
         content = chatgpt.generate_structured_response(content.response)
         conversation.append(content)
-        print()
+        yield f"data: {json.dumps(content.model_dump())}\n\n"
+        await asyncio.sleep(0.1)
+
         content = gemini.generate_structured_response(content.response)
         conversation.append(content)
+        yield f"data: {json.dumps(content.model_dump())}\n\n"
+        await asyncio.sleep(0.1)
 
-    return conversation, model_evaluated
+    judge_llm = Gemini()
+    judge = Judge(model_evaluated, judge_llm)
+    judge.score_detectability(conversation)
+    
+    evaluation_report = judge.evaluation_report
+    yield f"data: {json.dumps({'evaluation_result': evaluation_report})}\n\n"
 
 
 def evaluate_conversation(conversation, model_evaluated) -> str:
@@ -69,20 +83,17 @@ def run():
     evaluate_conversation(conversation, model_evaluated)
 
 
-@app.post("/api/evaluate")
-async def evaluate(request: EvaluateRequest):
+@app.get("/api/evaluate")
+async def evaluate(sarcasm_level: str):
     """
     Accepts a sarcasm level and returns a current conversation. #TODO: fix the description
     """
     print("evaluate")
-    selected_level = SarcasmLevel[request.sarcasm_level]
+    selected_level = SarcasmLevel[sarcasm_level]
     gemini, chatgpt, gpt_model = setup_models(selected_level)
-    conversation, model_evaluated = run_conversation(gemini, chatgpt,
-                                                     gpt_model, 4)
-    evaluation_report = evaluate_conversation(conversation, model_evaluated)
-    return {
-        "conversation": conversation,
-        "evaluation_result": evaluation_report,
-    }
+    return StreamingResponse(
+        stream_conversation(gemini, chatgpt, gpt_model, 4),
+        media_type="text/event-stream",
+    )
 
 app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="frontend")

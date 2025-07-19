@@ -1,37 +1,92 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const evaluateButton = document.getElementById('evaluateButton') as HTMLButtonElement;
-    const sarcasmLevelSelect = document.getElementById('sarcasmLevel') as HTMLSelectElement;
-    const conversationOutput = document.getElementById('conversationOutput') as HTMLDivElement;
-    const evaluationResultOutput = document.getElementById('evaluationResultOutput') as HTMLDivElement;
 
-    evaluateButton.addEventListener('click', async () => {
-        const sarcasmLevel = sarcasmLevelSelect.value;
+interface Turn {
+    model: string;
+    response: {
+        sarcasm_presence: boolean;
+        message: string;
+    };
+}
 
-        try {
-            const response = await fetch('/api/evaluate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ sarcasm_level: sarcasmLevel }),
-            });
+interface EvaluationResult {
+    evaluation_result: string;
+}
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+class SarcasmEvaluator {
+    private evaluateButton: HTMLButtonElement;
+    private sarcasmLevelSelect: HTMLSelectElement;
+    private conversationOutput: HTMLDivElement;
+    private evaluationResultOutput: HTMLDivElement;
+    private eventSource: EventSource | null = null;
 
-            const data = await response.json();
-            conversationOutput.innerHTML = data.conversation.map((turn: any) => {
-                const message = turn.response.message;
-                const sarcasmPresence = turn.response.sarcasm_presence;
-                const model = turn.model;
-                return `<p><strong>${model}:</strong> ${message} (Sarcasm: ${sarcasmPresence})</p>`;
-            }).join('');
-            evaluationResultOutput.innerText = data.evaluation_result;
-        } catch (error) {
-            console.error('Error during evaluation:', error);
-            conversationOutput.innerText = 'Error: Could not get conversation.';
-            evaluationResultOutput.innerText = 'Error: Could not get evaluation result.';
+    constructor() {
+        this.evaluateButton = document.getElementById('evaluateButton') as HTMLButtonElement;
+        this.sarcasmLevelSelect = document.getElementById('sarcasmLevel') as HTMLSelectElement;
+        this.conversationOutput = document.getElementById('conversationOutput') as HTMLDivElement;
+        this.evaluationResultOutput = document.getElementById('evaluationResultOutput') as HTMLDivElement;
+    }
+
+    public initialize(): void {
+        this.evaluateButton.addEventListener('click', () => this.startEvaluation());
+    }
+
+    private startEvaluation(): void {
+        const sarcasmLevel = this.sarcasmLevelSelect.value;
+        this.setLoadingState(true);
+        this.clearOutput();
+
+        this.eventSource = new EventSource(`/api/evaluate?sarcasm_level=${sarcasmLevel}`);
+        this.eventSource.onmessage = (event) => this.handleMessage(event);
+        this.eventSource.onerror = (error) => this.handleError(error);
+    }
+
+    private handleMessage(event: MessageEvent): void {
+        const data: Turn | EvaluationResult = JSON.parse(event.data);
+
+        if ('evaluation_result' in data) {
+            this.displayEvaluationResult(data.evaluation_result);
+            this.closeEventSource();
+        } else {
+            this.displayTurn(data);
         }
-    });
+    }
+
+    private displayTurn(turn: Turn): void {
+        const { model, response } = turn;
+        const p = document.createElement('p');
+        p.innerHTML = `<strong>${model}:</strong> ${response.message} (Sarcasm: ${response.sarcasm_presence})`;
+        this.conversationOutput.appendChild(p);
+    }
+
+    private displayEvaluationResult(result: string): void {
+        this.evaluationResultOutput.innerText = result;
+    }
+
+    private handleError(error: Event): void {
+        console.error('EventSource failed:', error);
+        this.conversationOutput.innerText = 'Error: Could not get conversation.';
+        this.evaluationResultOutput.innerText = 'Error: Could not get evaluation result.';
+        this.closeEventSource();
+    }
+
+    private setLoadingState(isLoading: boolean): void {
+        this.evaluateButton.disabled = isLoading;
+    }
+
+    private clearOutput(): void {
+        this.conversationOutput.innerHTML = '';
+        this.evaluationResultOutput.innerHTML = '';
+    }
+
+    private closeEventSource(): void {
+        if (this.eventSource) {
+            this.eventSource.close();
+            this.eventSource = null;
+        }
+        this.setLoadingState(false);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const app = new SarcasmEvaluator();
+    app.initialize();
 });
