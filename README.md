@@ -1,5 +1,7 @@
 # LLM Eval: Sarcasm Edition
 
+[![Sarcasm LLM Demo](https://raw.githubusercontent.com/yoonheeh/sarcasm-llm/master/assets/sarcasm_llm_thumbnail.png)](https://raw.githubusercontent.com/yoonheeh/sarcasm_llm/master/assets/sarcasm_llm_demo.webm)
+
 This project is an experiment to explore how well Large Language Models (LLMs) can understand and generate sarcasm. It follows up on the blog post ["Experiment: how well can LLMs understand sarcasm? (Part 1)"](https://yoonheeha.com/posts/sarcasm_and_llm_pt1), where "sarcasm detectability" was measured subjectively. This project aims to create a more grounded and objective way to measure this capability.
 
 For this experiment, we are comparing two LLMs: Gemini and ChatGPT.
