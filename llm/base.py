@@ -36,5 +36,5 @@ class LLM(ABC):
         pass
 
     @property
-    def current_reponse(self):
+    def current_response(self):
         return self._current_response
