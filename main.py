@@ -6,10 +6,9 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from llm.base import Response, Turn
-from llm.chatgpt import ChatGPT
 from llm.evaluation import Judge, SarcasmLevel
 from llm.gemini import Gemini
-from llm.prompts import get_prompts
+from llm.experiment import setup_models
 
 
 class EvaluateRequest(BaseModel):
@@ -18,37 +17,6 @@ class EvaluateRequest(BaseModel):
 
 
 app = FastAPI()
-
-
-def setup_models(selected_level, model_to_evaluate: str):
-    gemini = Gemini()
-    gemini_model_name = "gemini-2.5-flash"
-
-    chatgpt = ChatGPT()
-    gpt_model_name = "gpt-4.1-nano"
-
-    model_prompt, partner_prompt = get_prompts(selected_level.value)
-
-    if model_to_evaluate == "gemini":
-        print(f"Gemini prompt: {model_prompt}")
-        print(f"ChatGPT prompt: {partner_prompt}")
-        gemini.initialize(gemini_model_name, model_prompt)
-        chatgpt.initialize(gpt_model_name, partner_prompt)
-        model_evaluated_name = gemini_model_name
-        model_to_test = gemini
-        partner_model = chatgpt
-    elif model_to_evaluate == "gpt":
-        print(f"ChatGPT prompt: {model_prompt}")
-        print(f"Gemini prompt: {partner_prompt}")
-        chatgpt.initialize(gpt_model_name, model_prompt)
-        gemini.initialize(gemini_model_name, partner_prompt)
-        model_evaluated_name = gpt_model_name
-        model_to_test = chatgpt
-        partner_model = gemini
-    else:
-        raise ValueError("Invalid model to evaluate. Choose 'gpt' or 'gemini'.")
-
-    return model_to_test, partner_model, model_evaluated_name
 
 
 async def stream_conversation(model_to_test, partner_model, model_evaluated_name,
